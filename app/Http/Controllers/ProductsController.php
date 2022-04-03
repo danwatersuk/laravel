@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\StoreProduct;
+use App\Utility\Geocode;
 use Illuminate\Http\Request;
 
 class ProductsController extends Controller
@@ -18,6 +19,8 @@ class ProductsController extends Controller
         "old" => ["release_date","asc"],
         "new" => ["release_date", "desc"]
     ];
+    protected $dateFormat = 'Y-m-d H:i:s';
+    protected $nowDate;
     protected $products;
 
     public function __construct()
@@ -26,6 +29,16 @@ class ProductsController extends Controller
         normally be passed here with a store object. The id of the example 
         store is being set here for the purpose of the test */
         $this->storeId = 3;
+        $this->nowDate = new \Carbon\Carbon();
+    }
+    
+    public function addFilterLogic() {
+
+
+        $this->products
+            ->whereRaw("NOT FIND_IN_SET('disabled_countries', '".Geocode::country()."')")
+            ->where('launch_date', '<=', $this->nowDate->format($this->dateFormat))
+            ->where('remove_date', '>', $this->nowDate->format($this->dateFormat));
     }
 
     public function addSortLogic(Request $request) {
@@ -43,6 +56,18 @@ class ProductsController extends Controller
         });
     }
 
+    public function addSelect() {
+        $this->products->select(
+            'store_products.id AS id',
+            'artist.name AS artist',
+            'store_products.title AS title',
+            'store_products.description AS description'
+            //'price',
+            //'format',
+            //'release_date'
+        );
+    }
+
     public function addPaginate(Request $request) {
         //$this->paginateCount = $request->input('paginateCount');
         //$this->page = $request->input('page');
@@ -52,20 +77,27 @@ class ProductsController extends Controller
     public function products(Request $request) {
         $this->products = StoreProduct
             ::with('sections', 'artist');
+        $this->addSelect();
+        $this->addFilterLogic();
         $this->addSortLogic($request);
         $this->addPaginate($request);
+        dd($this->products->toSql());
         return json_encode($this->products->get());
     }
 
     public function section($section, Request $request) {
         $this->products = StoreProduct
-            ::with('sections', 'artist')
-            ->whereHas('sections',
+            ::with(['sections' =>
             function($query) use ($section) {
-                $query->whereLike('description', $section)
-                    ->orWhere('id', $section);
-            });
+                $query->whereLike('sections.description', $section)
+                    ->orWhere('sections.id', $section);
+            }], 'artist');
+        $this->addSelect();
+        $this->addFilterLogic();
         $this->addSortLogic($request);
         $this->addPaginate($request);
+        dd($this->products->toSql());
+        return json_encode($this->products->get());
     }
 }
+ 

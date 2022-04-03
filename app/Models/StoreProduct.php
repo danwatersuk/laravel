@@ -31,4 +31,6 @@ class StoreProduct extends Model
     {
         return $this->belongsTo(Artist::class, 'artist_id', 'id');
     }
+
+    
 }
