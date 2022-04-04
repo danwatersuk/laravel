@@ -23,6 +23,7 @@ class ProductsController extends Controller
     protected $nowDate;
     protected $products;
     protected $priceColumn;
+    protected $imagesDomain = "https://img.tmstor.es/";
 
     public function __construct()
     {
@@ -65,7 +66,7 @@ class ProductsController extends Controller
 
     public function addSelect() {
         $this->products->select(
-            'CONCAT(store_products.id, \'.\', image_format) AS image', // TODO add prefix
+            'CONCAT(\''.$this->imagesDomain.'\'store_products.id, \'.\', image_format) AS image', 
             'store_products.id AS id',
             'artist.name AS artist',
             'store_products.title AS title',
