@@ -22,6 +22,7 @@ class ProductsController extends Controller
     protected $dateFormat = 'Y-m-d H:i:s';
     protected $nowDate;
     protected $products;
+    protected $priceColumn;
 
     public function __construct()
     {
@@ -30,13 +31,19 @@ class ProductsController extends Controller
         store is being set here for the purpose of the test */
         $this->storeId = 3;
         $this->nowDate = new \Carbon\Carbon();
+        switch (session(['currency'])) {
+            case "USD":
+                $this->priceColumn = 'dollar_price';
+                break;
+            case "EUR":
+                $this->priceColumn = 'euro_price';
+                break;
+        }
     }
     
     public function addFilterLogic() {
-
-
         $this->products
-            ->whereRaw("NOT FIND_IN_SET('disabled_countries', '".Geocode::country()."')")
+            ->whereRaw("NOT FIND_IN_SET(".Geocode::country().", 'disabled_countries')")
             ->where('launch_date', '<=', $this->nowDate->format($this->dateFormat))
             ->where('remove_date', '>', $this->nowDate->format($this->dateFormat));
     }
@@ -47,24 +54,25 @@ class ProductsController extends Controller
             $query->orderBy($this->sortMap[$sort][0], $this->sortMap[$sort][1]);
         }, function($query) {
             if ((isset($section) && ($section == "%" || $section == "all"))) {
-                //$order = "ORDER BY sp.position ASC, release_date DESC";
+                $query->orderBy('store_products_section.position', 'ASC');
+                $query->orderBy('release_date', 'DESC');
             } else {
                 $query->orderBy('position', 'ASC');
                 $query->orderBy('release_date', 'DESC');
-                //$order = "ORDER BY store_products_section.position ASC, release_date DESC";
             }
         });
     }
 
     public function addSelect() {
         $this->products->select(
+            'CONCAT(store_products.id, \'.\', image_format) AS image', // TODO add prefix
             'store_products.id AS id',
             'artist.name AS artist',
             'store_products.title AS title',
-            'store_products.description AS description'
-            //'price',
-            //'format',
-            //'release_date'
+            'store_products.description AS description',
+            $this->priceColumn . ' AS price',
+            'type AS format',
+            'release_date'
         );
     }
 
@@ -81,7 +89,6 @@ class ProductsController extends Controller
         $this->addFilterLogic();
         $this->addSortLogic($request);
         $this->addPaginate($request);
-        dd($this->products->toSql());
         return json_encode($this->products->get());
     }
 
@@ -96,7 +103,6 @@ class ProductsController extends Controller
         $this->addFilterLogic();
         $this->addSortLogic($request);
         $this->addPaginate($request);
-        dd($this->products->toSql());
         return json_encode($this->products->get());
     }
 }
